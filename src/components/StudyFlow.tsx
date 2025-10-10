@@ -22,6 +22,7 @@ import LoadingCard from '@/components/loading-card';
 import TopPanel from '@/components/menu/TopPanel';
 import InputCard from '@/components/input/InputCard';
 import { serializeGraph, storageClear, storageLoad, storageSave } from '@/lib/storage';
+import { createThread, listThreads, loadPlan, savePlan } from '@/lib/db';
 
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"] });
 const instrumentSerif = Instrument_Serif({ subsets: ["latin"], weight: ["400"] });
@@ -46,6 +47,8 @@ export default function StudyFlow({ initialNodes = [], initialEdges = [] }: Stud
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [hasHydrated, setHasHydrated] = useState(false);
+  const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
+  const [threads, setThreads] = useState<{ id: string; name: string }[]>([]);
 
   const serializeGraph = (ns: any[], es: any[]) => {
     try {
@@ -70,7 +73,13 @@ export default function StudyFlow({ initialNodes = [], initialEdges = [] }: Stud
     }
   };
 
-  const persist = (payload: unknown) => { storageSave(payload); };
+  const persist = async (payload: unknown) => {
+    storageSave(payload);
+    if (currentThreadId) {
+      const { nodes: safeNodes, edges: safeEdges } = serializeGraph(nodes as any[], edges as any[]);
+      await savePlan(currentThreadId, { nodes: safeNodes, edges: safeEdges, content, days, savedAt: new Date().toISOString() });
+    }
+  };
 
   const handleMenuOpen = () => {
     setMenuOpen(!menuOpen);
@@ -134,25 +143,27 @@ export default function StudyFlow({ initialNodes = [], initialEdges = [] }: Stud
   };
 
   useEffect(() => {
-    try {
-      const parsed = storageLoad<any>();
-      if (!parsed) return;
-      if (Array.isArray(parsed?.nodes) && Array.isArray(parsed?.edges)) {
-        setNodes(parsed.nodes);
-        setEdges(parsed.edges);
-      }
-      if (parsed?.studyStats && typeof parsed.studyStats === 'object') {
-       
-      }
-      if (typeof parsed?.content === 'string') {
-        setContent(parsed.content);
-      }
-      if (typeof parsed?.days === 'number') {
-        setDays(parsed.days);
-        setDaysInput(String(parsed.days));
-      }
-    } catch {}
- 
+    (async () => {
+      try {
+        const ts = await listThreads();
+        if (ts.length === 0) {
+          const id = await createThread('Thread 1');
+          setCurrentThreadId(id);
+          setThreads([{ id, name: 'Thread 1' }]);
+        } else {
+          setThreads(ts.map(t => ({ id: t.id, name: t.name })));
+          setCurrentThreadId(ts[0].id);
+          const plan = await loadPlan(ts[0].id);
+          if (plan) {
+            setNodes(plan.nodes as any);
+            setEdges(plan.edges as any);
+            setContent(plan.content || '');
+            setDays(typeof plan.days === 'number' ? plan.days : 7);
+            setDaysInput(String(typeof plan.days === 'number' ? plan.days : 7));
+          }
+        }
+      } catch {}
+    })();
   }, []);
 
   useEffect(() => { setHasHydrated(true); }, []);
@@ -165,13 +176,14 @@ export default function StudyFlow({ initialNodes = [], initialEdges = [] }: Stud
   }, []);
 
   useEffect(() => {
-    try {
-      if (typeof window === 'undefined') return;
-      if (!hasHydrated) return;
-      const { nodes: safeNodes, edges: safeEdges } = serializeGraph(nodes as any[], edges as any[]);
-      persist({ nodes: safeNodes, edges: safeEdges, content, days, savedAt: new Date().toISOString() });
-    } catch {}
-  }, [nodes, edges, content, days, hasHydrated]);
+    (async () => {
+      try {
+        if (typeof window === 'undefined') return;
+        if (!hasHydrated) return;
+        await persist({ nodes, edges, content, days, savedAt: new Date().toISOString() });
+      } catch {}
+    })();
+  }, [nodes, edges, content, days, hasHydrated, currentThreadId]);
 
   const handleClearAll = () => {
     setNodes([]);
@@ -203,17 +215,17 @@ export default function StudyFlow({ initialNodes = [], initialEdges = [] }: Stud
 
   return (
     <div className="w-full h-screen ">
-        <div
-        className="
-          absolute inset-0
-          before:absolute before:inset-0
-          before:bg-[repeating-linear-gradient(315deg,#e5e7eb_0,#d1d5db_0.5px,transparent_0,transparent_50%)]
-          before:bg-[length:8px_8px]
-        "
-      />
+<div
+  className="
+    absolute inset-0 bg-white
+    before:absolute before:inset-0
+    before:bg-[repeating-linear-gradient(315deg,#e5e7eb_0,#d1d5db_0.5px,transparent_0,transparent_50%)]
+    before:bg-[length:8px_8px]
+  "
+/>
       {nodes.length === 0 && (
         <>
-          <div className="absolute inset-0 z-10 bg-white/30 backdrop-blur-md" />
+          <div className="absolute inset-0 z-10 bg-white backdrop-blur-md" />
           {isLoading ? (
             <LoadingCard/>
           ) : (
@@ -250,8 +262,32 @@ export default function StudyFlow({ initialNodes = [], initialEdges = [] }: Stud
             menuOpen={menuOpen}
             onToggleMenu={handleMenuOpen}
             onClear={handleClearAll}
-            onNew={() => { setNodes([]); setEdges([]); }}
+            onNew={async () => { 
+              const id = await createThread(`Thread ${threads.length + 1}`);
+              setCurrentThreadId(id);
+              setThreads(prev => [{ id, name: `Thread ${prev.length + 1}`}, ...prev]);
+              setNodes([]);
+              setEdges([]);
+              setContent('');
+            }}
             onExport={handleExport}
+            threads={threads}
+            currentThreadId={currentThreadId}
+            onSelectThread={async (id: string) => {
+              setCurrentThreadId(id);
+              const plan = await loadPlan(id);
+              if (plan) {
+                setNodes(plan.nodes as any);
+                setEdges(plan.edges as any);
+                setContent(plan.content || '');
+                setDays(typeof plan.days === 'number' ? plan.days : 7);
+                setDaysInput(String(typeof plan.days === 'number' ? plan.days : 7));
+              } else {
+                setNodes([]);
+                setEdges([]);
+                setContent('');
+              }
+            }}
           />
         )}
       </ReactFlow>

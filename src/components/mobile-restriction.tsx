@@ -51,24 +51,14 @@ const MobileRestriction: React.FC<MobileRestrictionProps> = ({ children }) => {
   if (isMobile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-neutral-50 to-neutral-100 px-4">
-        <div className="max-w-md w-full px-6 py-8 bg-white/80 backdrop-blur-md border border-neutral-200 shadow-xl rounded-2xl text-center">
-          {/* Brand */}
+        <div className="max-w-md w-full px-6 py-8 bg-white/80  border border-neutral-200  rounded-2xl text-center">
           <h1 className={`text-4xl tracking-tight text-neutral-900 mb-2 ${instrumentSerif.className}`}>welp</h1>
      
 
-          {/* Icon */}
-          <div className="mb-5 flex justify-center">
-            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-neutral-100 border border-neutral-200">
-              <Smartphone className="h-6 w-6 text-neutral-500" />
-            </div>
-          </div>
-
-          {/* Message */}
           <p className="text-neutral-700 text-base leading-relaxed">
-           <span className={instrumentSerif.className}>  Welp  is not optimized for small screens. Please switch to a desktop or laptop for the best experience.</span> 
+           <span >  Welp  is not optimized for small screens. Please switch to a desktop or laptop for the best experience.</span> 
           </p>
 
-          {/* Why */}
           <div className="mt-6 space-y-2 text-left">
             <p className="text-sm text-neutral-500">Why desktop only?</p>
             <ul className="text-sm text-neutral-600 space-y-1 list-disc pl-5">
@@ -77,11 +67,9 @@ const MobileRestriction: React.FC<MobileRestrictionProps> = ({ children }) => {
               <li>Smoother performance and navigation</li>
             </ul>
           </div>
-
-          {/* CTA */}
           <div className="mt-8 flex justify-center">
             <Link href="/" passHref>
-              <Button className="inline-flex items-center gap-2 bg-neutral-900 hover:bg-neutral-800 text-white px-5 py-2 rounded-lg">
+              <Button className="">
                 Return Home
               </Button>
             </Link>
