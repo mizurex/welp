@@ -3,7 +3,7 @@
 import React from 'react';
 
 interface MascotDotFace2Props {
-  size?: number; // diameter in px
+  size?: number; 
   className?: string;
 }
 

@@ -2,10 +2,11 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Info } from 'lucide-react';
 import MascotEyes from './MascotEyes';
 import MascotDotFace from './MascotDotFace';
 import Flips from '../ui/flips';
+import MainPanel from '@/components/menu/main-panel';
 
 interface InputCardProps {
   content: string;
@@ -17,6 +18,8 @@ interface InputCardProps {
   setDaysError: (v: string) => void;
   isLoading: boolean;
   onSubmit: () => void;
+  requestError?: string;
+  setRequestError?: (v: string) => void;
 }
 
 export default function InputCard({
@@ -29,10 +32,16 @@ export default function InputCard({
   setDaysError,
   isLoading,
   onSubmit,
+  requestError,
+  setRequestError,
 }: InputCardProps) {
   return (
+    <>
+    <div className="fixed top-2 left-2 z-30">
+      <MainPanel />
+    </div>
     <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
-      <div className="bg-transparent min-w-[700px]">
+      <div className="bg-transparent min-w-[700px] relative">
       <div className="flex flex-col items-center gap-2 mb-6">
   <div className="relative px-3 py-1 rounded-full text-sm bg-white border border-neutral-300 shadow-[2px_3px_rgba(0,0,0,0.1)]">
    <span className="text-secondary-foreground">Ready to
@@ -52,6 +61,11 @@ export default function InputCard({
                 className="w-full text-secondary-foreground h-20 resize-none bg-transparent focus:outline-none text-[13px]"
                 maxLength={350}
               />
+              {requestError && (
+                <div className="mt-2 text-[11px] text-red-600 flex items-center gap-2 px-2 rounded">
+                 <Info className="w-3 h-3" /> {requestError}
+                </div>
+              )}
               <div className="mt-2 flex items-center justify-between">
               <div className="relative mt-6">
             <input
@@ -80,7 +94,10 @@ export default function InputCard({
             />
           </div>
                 <Button className='w-fit' onClick={onSubmit} disabled={isLoading || !content.trim() || !!daysError}>
-                  <span className="flex items-center gap-2 text-sm">Send <ArrowUpRight className="w-3 h-4" /></span>
+                  <span className="flex items-center gap-2 text-sm">
+                    {isLoading ? 'Generating…' : 'Send'}
+                    {!isLoading && <ArrowUpRight className="w-3 h-4" />}
+                  </span>
                 </Button>
               </div>
             </div>
@@ -109,6 +126,7 @@ export default function InputCard({
       
       </div>
     </div>
+    </>
   );
 }
 
