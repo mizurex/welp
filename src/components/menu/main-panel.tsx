@@ -37,7 +37,6 @@ export default function MainPanel({}: MainPanelProps) {
               <ThreadsList />
             </div>
           </div>
-
         </div>
       </div>
     )}
