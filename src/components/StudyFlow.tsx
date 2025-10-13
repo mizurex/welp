@@ -4,7 +4,6 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import {
   ReactFlow,
-  Controls,
   Background,
   useNodesState,
   useEdgesState,
@@ -18,11 +17,12 @@ import '@xyflow/react/dist/style.css';
 import CustomNode from './CustomNode';
 import { Space_Grotesk } from "next/font/google";
 import { Instrument_Serif } from 'next/font/google';
-import LoadingCard from '@/components/loading-card';
+// import LoadingCard from '@/components/loading-card';
 import TopPanel from '@/components/menu/TopPanel';
 import InputCard from '@/components/input/InputCard';
 import { serializeGraph, storageClear, storageLoad, storageSave } from '@/lib/storage';
 import { createThread, listThreads, loadPlan, savePlan } from '@/lib/db';
+import { useThreadStore } from '@/store/threadStore';
 
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"] });
 const instrumentSerif = Instrument_Serif({ subsets: ["latin"], weight: ["400"] });
@@ -36,6 +36,7 @@ interface StudyFlowProps {
 }
 
 export default function StudyFlow({ initialNodes = [], initialEdges = [] }: StudyFlowProps) {
+  const { threads, currentThreadId, init, createNewThread, selectThread } = useThreadStore();
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [isLoading, setIsLoading] = useState(false);
@@ -43,12 +44,10 @@ export default function StudyFlow({ initialNodes = [], initialEdges = [] }: Stud
   const [days, setDays] = useState(7);
   const [daysInput, setDaysInput] = useState('7');
   const [daysError, setDaysError] = useState('');
-
+  const [requestError, setRequestError] = useState('');
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [hasHydrated, setHasHydrated] = useState(false);
-  const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
-  const [threads, setThreads] = useState<{ id: string; name: string }[]>([]);
 
   const serializeGraph = (ns: any[], es: any[]) => {
     try {
@@ -91,9 +90,12 @@ export default function StudyFlow({ initialNodes = [], initialEdges = [] }: Stud
   );
 
   const processContent = async () => {
-  if(!content.trim()) return;
-  if(days<1 || days>7) return;
-    
+    if(!content.trim()) return;
+    if(days<1 || days>7) return;
+
+    // clear previous request error
+    if (requestError) setRequestError('');
+
     setIsLoading(true);
 
     try {
@@ -104,7 +106,10 @@ export default function StudyFlow({ initialNodes = [], initialEdges = [] }: Stud
       })
 
       const data = await response.json();
-      if(!data.success) return;
+      if(!response.ok || !data.success) {
+        setRequestError(typeof data?.message === 'string' ? data.message : 'Something went wrong. Please try again.');
+        return;
+      }
      
 
         setNodes(data.nodes);
@@ -137,36 +142,37 @@ export default function StudyFlow({ initialNodes = [], initialEdges = [] }: Stud
       
     } catch (error) {
       console.error('Error processing content..', error);
+      setRequestError('Network error. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  useEffect(() => { init(); }, [init]);
+
+  useEffect(() => { setHasHydrated(true); }, []);
+
+  // when the selected thread changes, load its plan into the canvas/input
   useEffect(() => {
     (async () => {
+      if (!currentThreadId) return;
       try {
-        const ts = await listThreads();
-        if (ts.length === 0) {
-          const id = await createThread('Thread 1');
-          setCurrentThreadId(id);
-          setThreads([{ id, name: 'Thread 1' }]);
+        const plan = await loadPlan(currentThreadId);
+        if (plan) {
+          setNodes(plan.nodes as any);
+          setEdges(plan.edges as any);
+          setContent(plan.content || '');
+          const effectiveDays = typeof plan.days === 'number' ? plan.days : 7;
+          setDays(effectiveDays);
+          setDaysInput(String(effectiveDays));
         } else {
-          setThreads(ts.map(t => ({ id: t.id, name: t.name })));
-          setCurrentThreadId(ts[0].id);
-          const plan = await loadPlan(ts[0].id);
-          if (plan) {
-            setNodes(plan.nodes as any);
-            setEdges(plan.edges as any);
-            setContent(plan.content || '');
-            setDays(typeof plan.days === 'number' ? plan.days : 7);
-            setDaysInput(String(typeof plan.days === 'number' ? plan.days : 7));
-          }
+          setNodes([]);
+          setEdges([]);
+          setContent('');
         }
       } catch {}
     })();
-  }, []);
-
-  useEffect(() => { setHasHydrated(true); }, []);
+  }, [currentThreadId]);
 
   useEffect(() => {
     const existing = storageLoad();
@@ -226,21 +232,19 @@ export default function StudyFlow({ initialNodes = [], initialEdges = [] }: Stud
       {nodes.length === 0 && (
         <>
           <div className="absolute inset-0 z-10 bg-white backdrop-blur-md" />
-          {isLoading ? (
-            <LoadingCard/>
-          ) : (
-            <InputCard
-              content={content}
-              setContent={setContent}
-              daysInput={daysInput}
-              setDaysInput={setDaysInput}
-              daysError={daysError}
-              setDays={setDays}
-              setDaysError={setDaysError}
-              isLoading={isLoading}
-              onSubmit={processContent}
-            />
-          )}
+          <InputCard
+            content={content}
+            setContent={setContent}
+            daysInput={daysInput}
+            setDaysInput={setDaysInput}
+            daysError={daysError}
+            setDays={setDays}
+            setDaysError={setDaysError}
+            isLoading={isLoading}
+            onSubmit={processContent}
+            requestError={requestError}
+            setRequestError={setRequestError}
+          />
         </>
       )}
 
@@ -255,39 +259,12 @@ export default function StudyFlow({ initialNodes = [], initialEdges = [] }: Stud
         className="touchdevice-flow"
       >
         <Background variant={BackgroundVariant.Dots} color="transparent" bgColor="transparent" />
-        
-        <Controls className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg" />
         {nodes.length > 0 && (
           <TopPanel
             menuOpen={menuOpen}
             onToggleMenu={handleMenuOpen}
             onClear={handleClearAll}
-            onNew={async () => { 
-              const id = await createThread(`Thread ${threads.length + 1}`);
-              setCurrentThreadId(id);
-              setThreads(prev => [{ id, name: `Thread ${prev.length + 1}`}, ...prev]);
-              setNodes([]);
-              setEdges([]);
-              setContent('');
-            }}
             onExport={handleExport}
-            threads={threads}
-            currentThreadId={currentThreadId}
-            onSelectThread={async (id: string) => {
-              setCurrentThreadId(id);
-              const plan = await loadPlan(id);
-              if (plan) {
-                setNodes(plan.nodes as any);
-                setEdges(plan.edges as any);
-                setContent(plan.content || '');
-                setDays(typeof plan.days === 'number' ? plan.days : 7);
-                setDaysInput(String(typeof plan.days === 'number' ? plan.days : 7));
-              } else {
-                setNodes([]);
-                setEdges([]);
-                setContent('');
-              }
-            }}
           />
         )}
       </ReactFlow>

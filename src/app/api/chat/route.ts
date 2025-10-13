@@ -43,6 +43,29 @@ export async function POST(req: Request) {
   try {
     const { content, daysBeforeExam } = await req.json();
 
+    // Phase 1: classify intent robustly using the model (handles typos/semantics)
+    // - image: any request to create/generate pictures/logos/images
+    // - nonsense: gibberish or not a meaningful topic/question
+    // - ok: everything else (allowed)
+    const IntentSchema = z.object({ intent: z.enum(['ok', 'image', 'nonsense']) });
+    const intentResult = await generateObject({
+      model: google("gemini-2.0-flash-exp"),
+      schema: IntentSchema,
+      prompt: `You are a strict intent classifier for a study-plan builder.\nReturn JSON with {"intent": "ok" | "image" | "nonsense"}.\n- Use "image" if the user asks to create/generate/provide an image, picture, logo, or references formats like png/jpg/svg.\n- Use "nonsense" if the request is unintelligible or not a meaningful topic/question.\n- Otherwise use "ok".\nUser request: "${content}"`,
+    });
+    if (intentResult.object.intent === 'image') {
+      return Response.json(
+        { success: false, error: 'UNSUPPORTED_INTENT', message: 'Welp does not support image generation' },
+        { status: 400 }
+      );
+    }
+    if (intentResult.object.intent === 'nonsense') {
+      return Response.json(
+        { success: false, error: 'INVALID_REQUEST', message: 'Please ask a clear study topic.' },
+        { status: 400 }
+      );
+    }
+
     // Determine compression level based on days
     const compressionLevel = daysBeforeExam <= 7 ? "low" : 
                            daysBeforeExam <= 14 ? "medium" : "high";

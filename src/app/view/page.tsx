@@ -5,7 +5,6 @@ export default function View() {
   return (
     <MobileRestriction>
          <StudyFlow/>
-    </MobileRestriction>
-   
+    </MobileRestriction>  
   );
 }

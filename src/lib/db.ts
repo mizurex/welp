@@ -56,4 +56,18 @@ export async function savePlan(threadId: string, data: PlanData) {
   await db.threads.update(threadId, { updatedAt: new Date().toISOString() });
 }
 
+export async function deleteThread(threadId: string) {
+  await db.transaction('rw', db.threads, db.plans, async () => {
+    await db.plans.delete(threadId);
+    await db.threads.delete(threadId);
+  });
+}
+
+export async function deleteAllThreads() {
+  await db.transaction('rw', db.threads, db.plans, async () => {
+    await db.plans.clear();
+    await db.threads.clear();
+  });
+}
+
 
