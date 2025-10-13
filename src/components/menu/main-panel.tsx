@@ -2,21 +2,17 @@
 
 import React, { useState } from 'react';
 import ThreadsList from './threads';
-import { useThreadStore } from '@/store/threadStore';
 import { ChevronRight, EllipsisVertical } from 'lucide-react';
 
 interface MainPanelProps {}
 
 export default function MainPanel({}: MainPanelProps) {
-  const { createNewThread, removeAllThreads } = useThreadStore();
+
   const [open, setOpen] = useState(false);
   const toggleMenu = () => {
     setOpen(!open);
   }
-  const clearAll = async () => {
-    await removeAllThreads();
-    localStorage.removeItem('welp-data');
-  }
+
   return (
     <div className="relative inline-block text-left ">
     <button

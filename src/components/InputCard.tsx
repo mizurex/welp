@@ -3,10 +3,11 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowUpRight, Info } from 'lucide-react';
-import MascotEyes from './MascotEyes';
-import MascotDotFace from './MascotDotFace';
-import Flips from '../ui/flips';
+import MascotEyes from './decor/mascot2';
+import MascotDotFace from './decor/mascot';
+import Flips from './ui/flips';
 import MainPanel from '@/components/menu/main-panel';
+
 
 interface InputCardProps {
   content: string;
@@ -22,7 +23,7 @@ interface InputCardProps {
   setRequestError?: (v: string) => void;
 }
 
-export default function InputCard({
+export const InputCard = React.memo(function ({
   content,
   setContent,
   daysInput,
@@ -93,10 +94,10 @@ export default function InputCard({
               className="w-10 text-sm text-neutral-700 h-6 pl-2 rounded-lg bg-white/20 backdrop-blur-sm border border-neutral-300 transition focus:outline-none focus:ring-1 focus:ring-neutral-200 focus:bg-white/40 focus:backdrop-blur-md"
             />
           </div>
-                <Button className='w-fit' onClick={onSubmit} disabled={isLoading || !content.trim() || !!daysError}>
+                <Button className='py-2 px-2.5 w-fit' onClick={onSubmit} disabled={isLoading || !content.trim() || !!daysError}>
                   <span className="flex items-center gap-2 text-sm">
-                    {isLoading ? 'Generating…' : 'Send'}
-                    {!isLoading && <ArrowUpRight className="w-3 h-4" />}
+                    {isLoading ? 'Generating…' : ''}
+                    {!isLoading && <ArrowUpRight className="w-4 h-5" />}
                   </span>
                 </Button>
               </div>
@@ -128,6 +129,6 @@ export default function InputCard({
     </div>
     </>
   );
-}
+});
 
 

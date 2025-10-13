@@ -4,9 +4,9 @@ import React from 'react';
 import { Panel } from '@xyflow/react';
 import { ChevronRight, EllipsisVertical, PlusIcon, TrashIcon, Braces } from 'lucide-react';
 import ThreadsList from './threads';
-import { useThreadStore } from '@/store/threadStore';
+import { useThreadStore } from '@/stores/thread-store';
 import { Instrument_Serif } from "next/font/google";
-import MascotDotFace2 from '../input/MascotEyes';
+import MascotDotFace2 from '../decor/mascot2';
 
 const instrumentSerif = Instrument_Serif({ subsets: ["latin"], weight: ["400"] });
 
@@ -49,7 +49,7 @@ export default function TopPanel({ menuOpen, onToggleMenu, onClear, onExport }: 
               <div className="absolute left-full top-0 w-25 rounded-md bg-white backdrop-blur-md shadow-lg shadow-black/20 border border-neutral-300 p-1 hidden group-hover:block">
                 <button onClick={onExport} className="w-full flex justify-between items-center text-zinc-800 text-left px-3 py-2 text-sm hover:bg-neutral-100 rounded cursor-pointer">
                   <span className="text-xs font-medium text-neutral-700"> JSON </span>
-                  <Braces className="w-4 h-3 text-neutral-700" />
+                  
                 </button>
               </div>
             </div>

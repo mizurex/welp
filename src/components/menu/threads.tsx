@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Braces, PlusIcon } from 'lucide-react';
-import { useThreadStore } from '@/store/threadStore';
+import { useThreadStore } from '@/stores/thread-store';
 
 interface ThreadsListProps {
   onAfterSelect?: () => void;

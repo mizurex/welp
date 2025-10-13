@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { createThread, listThreads, deleteThread, deleteAllThreads } from '@/lib/db';
+import { createThread, listThreads, deleteThread, deleteAllThreads } from '@/dexie/db';
 
 export type Thread = { id: string; name: string };
 
@@ -22,8 +22,7 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
     try {
       const ts = await listThreads();
       if (ts.length === 0) {
-        const id = await createThread('Thread 1');
-        set({ threads: [{ id, name: 'Thread 1' }], currentThreadId: id });
+        set({ threads: [], currentThreadId: null });
       } else {
         set({ threads: ts.map(t => ({ id: t.id, name: t.name })), currentThreadId: ts[0].id });
       }

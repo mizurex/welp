@@ -1,10 +1,11 @@
+import ChatPage from "@/components/chat-page";
 import MobileRestriction from "@/components/mobile-restriction";
-import StudyFlow from "@/components/StudyFlow";
 
-export default function View() {
+
+export default function Chat() {
   return (
     <MobileRestriction>
-         <StudyFlow/>
+         <ChatPage/>
     </MobileRestriction>  
   );
 }

@@ -4,7 +4,7 @@ import { Handle, Position, NodeProps, useReactFlow } from '@xyflow/react';
 import Image from 'next/image';
 import { NotebookPen,Ellipsis } from 'lucide-react';
 import dynamic from 'next/dynamic';
-const MarkdownRenderer = dynamic(() => import('./MarkdownRenderer'), { ssr: false });
+const MarkdownRenderer = dynamic(() => import('./markdown-renderer'), { ssr: false });
 
 export interface CustomNodeData {
   label: string;
@@ -25,7 +25,6 @@ type CustomNodeProps = NodeProps & {
 
 const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProps) => {
   const { addNodes, addEdges } = useReactFlow();
-  const [isExpanded, setIsExpanded] = useState(false);
   const [isCompleted, setIsCompleted] = useState(data.isCompleted);
   const [showDetails, setShowDetails] = useState(false);
   const [openInMenu, setOpenInMenu] = useState(false);
@@ -91,14 +90,13 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
     }
     const w = window.open(url, '_blank', 'noopener,noreferrer');
     if (!w) {
-      // Popup blocked; clipboard already has the prompt
       try { navigator.clipboard?.writeText(prompt); } catch {}
     }
     setOpenInMenu(false);
   };
 
   const nodeStyles = data.nodeType === 'topic' 
-    ? 'bg-[#1c5db8]  text-white shadow-xl'
+    ? 'bg-[#5a5a5a]  text-white shadow-xl'
     : 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-800 shadow-md';
 
   const completedStyles = isCompleted 

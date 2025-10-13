@@ -1,7 +1,7 @@
 import Dexie, { Table } from 'dexie';
 
 export interface Thread {
-  id: string; // primary key
+  id: string; // pk
   name: string;
   updatedAt: string;
 }
@@ -15,7 +15,7 @@ export interface PlanData {
 }
 
 export interface Plan {
-  threadId: string; // primary key
+  threadId: string; //pk
   data: PlanData;
 }
 

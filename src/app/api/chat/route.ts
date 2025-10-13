@@ -3,9 +3,6 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import dagre from "dagre";
 
-// ----------------------
-// 1. Zod Schemas
-// ----------------------
 const SubtopicSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -36,17 +33,51 @@ const StudyPlanSchema = z.object({
   summary: z.string(),
 });
 
-// ----------------------
-// 2. POST Route
-// ----------------------
+function buildTeachingPrompt(content: string, daysBeforeExam: number) {
+  const compressionLevel = daysBeforeExam <= 7 ? "low" : daysBeforeExam <= 14 ? "medium" : "high";
+  const topicsPerDay = daysBeforeExam <= 7 ? "2-3" : daysBeforeExam <= 14 ? "3-5" : "4-6";
+
+  return `
+You are a master teacher and curriculum designer. Create a crystal-clear, step-by-step ${daysBeforeExam}-day study plan that TEACHES deeply (not just lists syntax).
+
+Teaching Principles (FOLLOW STRICTLY):
+- Be concise, specific, and practical. No fluff.
+- For every TOPIC:
+  1) Explain the concept 7-8 sentences (why it matters, how it works).
+  2) Show ONE minimal, runnable code example when the concept is programming-related.
+     - Use correct language fences (\`\`\`ts, \`\`\`js, \`\`\`py, etc.)
+     - code should clear and easy to understand.
+  3) Give a short 3-5 step walkthrough (how to apply it mentally or in code).
+  4) Practice tasks are OPTIONAL (0-2). Include them only if they truly add value.
+- For SUBTOPICS: 1-3 sentence explanation. Include code snippet only if it clarifies the idea.
+- Use simple language so a beginner can follow.
+
+Compression Rules (${compressionLevel.toUpperCase()}):
+- Topics per day: ${topicsPerDay}
+- Keep the tree width reasonable. Combine small topics under themed sessions.
+
+Structure Requirements:
+- days[] ordered: fundamentals → intermediate → advanced → review
+- Each day: dayNumber, dayTitle, topics[], totalMinutes
+- Each topic: id, title, content (teaching text as above), estimatedMinutes, subtopics[] (2-5), practiceTasks[] (0-2, optional)
+- Each subtopic: id, title, content (1-3 sentences), estimatedMinutes?, practiceTasks? (0-1, optional)
+
+Content to teach:
+${content}
+
+Important:
+- Don’t skip subtopics. Every topic must have 2-5 subtopics.
+- Prefer short, runnable code examples over abstract descriptions when relevant.
+- Always write clear, direct, beginner-friendly text.
+`;
+}
+
 export async function POST(req: Request) {
   try {
-    const { content, daysBeforeExam } = await req.json();
+    const { content } = await req.json();
+    const daysBeforeExam = 2; 
 
-    // Phase 1: classify intent robustly using the model (handles typos/semantics)
-    // - image: any request to create/generate pictures/logos/images
-    // - nonsense: gibberish or not a meaningful topic/question
-    // - ok: everything else (allowed)
+  
     const IntentSchema = z.object({ intent: z.enum(['ok', 'image', 'nonsense']) });
     const intentResult = await generateObject({
       model: google("gemini-2.0-flash-exp"),
@@ -66,141 +97,21 @@ export async function POST(req: Request) {
       );
     }
 
-    // Determine compression level based on days
-    const compressionLevel = daysBeforeExam <= 7 ? "low" : 
-                           daysBeforeExam <= 14 ? "medium" : "high";
-    
-    const topicsPerDay = daysBeforeExam <= 7 ? "2-3" : 
-                        daysBeforeExam <= 14 ? "3-5" : "4-6";
+  
+    const compressionLevel = "low";
+    const topicsPerDay = "2-3";
 
-    // ----------------------
-    // 3. AI Generation
-    // ----------------------
+
     const { object } = await generateObject({
       model: google("gemini-2.0-flash-exp"),
       schema: StudyPlanSchema,
-      prompt: `
-You are an **expert academic planner** creating a clean, hierarchical study roadmap that will be displayed as a tree structure.
-
-### Task
-Organize the material below into a structured study plan over ${daysBeforeExam} days.
-${daysBeforeExam > 10 ? `
-**IMPORTANT**: Since we have ${daysBeforeExam} days, we need to COMPRESS content to keep the tree manageable:
-- Each day should cover ${topicsPerDay} main topics
-- Each topic should have 2-4 subtopics maximum
-- Group related concepts together aggressively
-- Combine smaller topics into larger themed sessions
-- Keep the total tree width reasonable (no more than 6 topics per day)
-` : `
-- Each day should have 2-3 main topics
-- Each topic should have 3-5 subtopics
-`}
-
----
-
-### Content to Study
-${content}
-
----
-
-### STRICT STRUCTURAL REQUIREMENTS
-
-1. **Day Structure** (Parent Level):
-   - Each day is a major node with a clear title like "Day 1: Fundamentals" or "Day 3: Advanced Concepts"
-   - Days should progress logically: basics → intermediate → advanced → review
-
-2. **Topic Structure** (Child Level):
-   - Each day branches into ${topicsPerDay} main topics
-   - Topics must TEACH the concept with:
-     - A concise explanation (2-4 sentences)
-     - A step-by-step mini walkthrough (3-6 steps)
-     - 1-3 mini-exercises (practiceTasks)
-   - Each topic: 30-90 minutes
-
-3. **Subtopic Structure** (Grandchild Level):
-   - Each topic branches into 2-5 specific subtopics
-   - Subtopics are specific concepts or skills
-   - Keep subtopic titles concise (2-5 words)
-   - Subtopic content: 1-3 sentences with a concrete example
-   - Include 1-2 practiceTasks where helpful
-  - Provide 1-3 short practiceTasks (bite-sized exercises)
-  - Provide 2-4 high-quality resources (label + url)
-
-4. **Compression Rules for ${daysBeforeExam > 10 ? 'LARGE' : 'STANDARD'} Plans**:
-   ${daysBeforeExam > 10 ? `
-   - Aggressively group related concepts
-   - Prioritize breadth over depth
-   - Combine small topics into themed sessions
-   - Maximum 6 topics per day to keep tree width manageable
-   ` : `
-   - Balanced distribution across days
-   - Detailed breakdown of each concept
-   `}
-
-5. **Flow Requirements**:
-   - Day 1 must cover prerequisites and fundamentals
-   - Middle days build complexity progressively
-   - Include a review/practice day if ${daysBeforeExam} > 7
-   - Last day should be lighter (review/practice)
-
----
-
-### Output Format Example
-{
-  "days": [
-    {
-      "dayNumber": 1,
-      "dayTitle": "Day 1: Foundation & Setup",
-      "topics": [
-        {
-          "id": "topic-1-1",
-          "title": "Core Concepts",
-          "content": "Understanding the fundamental principles",
-          "estimatedMinutes": 60,
-          "subtopics": [
-            {
-              "id": "sub-1-1-1",
-              "title": "Basic Theory",
-              "content": "Introduction to key theoretical concepts"
-            },
-            {
-              "id": "sub-1-1-2",
-              "title": "Terminology",
-              "content": "Essential terms and definitions"
-            }
-          ]
-        }
-      ],
-      "totalMinutes": 180
-    }
-  ],
-  "totalDays": ${daysBeforeExam},
-  "summary": "A structured ${daysBeforeExam}-day study plan..."
-}
-
-CRITICAL: 
-- Give the high quality answers to the questions
-- Teach clearly with short, precise explanations and step-by-step bullets
-- When appropriate, include minimal, runnable code snippets fenced with language tags, e.g. \`\`\`ts ... \`\`\`
-- Every topic MUST have at least 2 subtopics
-- Keep the tree balanced - similar number of topics per day
-- Make sure IDs are unique and follow the pattern: topic-{day}-{index}, sub-{day}-{topic}-{index}
-- Content should be educational and specific, not generic
- 
-### Teaching and Markdown Formatting Rules
-- Use Markdown for structure (headings, lists, tables if helpful)
-- Prefer concrete examples over abstract summaries
-- For algorithms or CLI steps, show a numbered list of steps
-- For code, include a short explanation before and after the snippet
-      `,
+      prompt: buildTeachingPrompt(content, daysBeforeExam),
     });
 
-    // ----------------------
-    // 4. Convert to React Flow Nodes & Edges
-    // ----------------------
+  
     const flowNodes: any[] = [];
     const flowEdges: any[] = [];
-    let nodeIdCounter = 0;
+  
 
     // Create root node
     const rootId = "root";
@@ -316,17 +227,15 @@ CRITICAL:
       });
     });
 
-    // ----------------------
-    // 5. DAGRE Layout - Hierarchical Tree
-    // ----------------------
+
     const dagreGraph = new dagre.graphlib.Graph();
     dagreGraph.setDefaultEdgeLabel(() => ({}));
     
-    // Configure for vertical tree layout
+    //  vertical tree layout
     dagreGraph.setGraph({
       rankdir: "TB",      // Top to Bottom for tree structure
-      ranksep: 120,       // Vertical spacing between levels
-      nodesep: 80,        // Horizontal spacing between siblings
+      ranksep: 120,       
+      nodesep: 80,     
       marginx: 50,
       marginy: 50,
       acyclicer: "greedy",
@@ -364,11 +273,9 @@ CRITICAL:
     flowEdges.forEach((edge) => {
       dagreGraph.setEdge(edge.source, edge.target);
     });
-    
-    // Run the layout algorithm
+ 
     dagre.layout(dagreGraph);
     
-    // Apply the calculated positions
     const layoutedNodes = flowNodes.map((node) => {
       const dagreNode = dagreGraph.node(node.id);
       const nodeWidth = dagreNode.width;
@@ -385,7 +292,6 @@ CRITICAL:
       };
     });
 
-    // Update edges for better visuals
     const layoutedEdges = flowEdges.map((edge) => ({
       ...edge,
       markerEnd: {
@@ -395,9 +301,6 @@ CRITICAL:
       },
     }));
 
-    // ----------------------
-    // 6. Return Response
-    // ----------------------
     return Response.json({
       nodes: layoutedNodes,
       edges: layoutedEdges,
