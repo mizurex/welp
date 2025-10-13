@@ -156,10 +156,19 @@ ${content}
 }
 
 CRITICAL: 
+- Give the high quality answers to the questions
+- Teach clearly with short, precise explanations and step-by-step bullets
+- When appropriate, include minimal, runnable code snippets fenced with language tags, e.g. \`\`\`ts ... \`\`\`
 - Every topic MUST have at least 2 subtopics
 - Keep the tree balanced - similar number of topics per day
 - Make sure IDs are unique and follow the pattern: topic-{day}-{index}, sub-{day}-{topic}-{index}
 - Content should be educational and specific, not generic
+ 
+### Teaching and Markdown Formatting Rules
+- Use Markdown for structure (headings, lists, tables if helpful)
+- Prefer concrete examples over abstract summaries
+- For algorithms or CLI steps, show a numbered list of steps
+- For code, include a short explanation before and after the snippet
       `,
     });
 

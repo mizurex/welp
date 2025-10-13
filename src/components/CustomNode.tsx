@@ -3,6 +3,8 @@ import React, { memo, useState } from 'react';
 import { Handle, Position, NodeProps, useReactFlow } from '@xyflow/react';
 import Image from 'next/image';
 import { NotebookPen,Ellipsis } from 'lucide-react';
+import dynamic from 'next/dynamic';
+const MarkdownRenderer = dynamic(() => import('./MarkdownRenderer'), { ssr: false });
 
 export interface CustomNodeData {
   label: string;
@@ -62,6 +64,7 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
       type: 'smoothstep',
     }]);
   };
+
 
   const buildPrompt = (): string => {
     const practice = Array.isArray(data.practiceTasks) && data.practiceTasks.length
@@ -135,10 +138,8 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
               </span>
             )}
           </div>
-        </div>
-        
-        {/* Completion checkbox */}
-        <button
+        </div> 
+        <button  //checkbox
           onClick={handleComplete}
           className={`
             w-4 h-4 rounded-full border-1 ml-3 mt-0.5 flex items-center cursor-pointer justify-center
@@ -156,8 +157,6 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
           )}
         </button>
       </div>
-
-      {/* Expandable content */}
       {showDetails && (
         <div className="mt-3 pt-3 border-t border-neutral-300">
           {data.isNote ? (
@@ -166,17 +165,12 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
               className="w-full text-xs leading-relaxed font-light bg-white/10 rounded p-2 border border-white/20"
               onClick={(e) => e.stopPropagation()}
               onChange={(e) => {
-                // local-only editing; real apps should persist to state/store
                 (data as any).content = e.target.value;
               }}
             />
           ) : (
-            <p className="text-xs leading-relaxed font-light">
-              {data.content}
-            </p>
+            <MarkdownRenderer content={data.content} />
           )}
-
-          {/* Practice tasks */}
           {Array.isArray(data.practiceTasks) && data.practiceTasks.length > 0 && (
             <div className="mt-3">
               <div className="text-xs font-semibold mb-1 opacity-90">Practice</div>
@@ -186,8 +180,7 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
                 ))}
               </ul>
             </div>
-          )}
-          
+          )} 
           <div className="mt-3"> 
             {data.isNote ? (
             <div className="flex justify-end relative">
@@ -255,12 +248,9 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
               </div>
              
             )}
-            {/* ChatGPT button */}
-           
           </div>
         </div>
       )}
-
       <Handle
         type="source"
         position={Position.Bottom}

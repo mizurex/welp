@@ -3,6 +3,9 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowUpRight } from 'lucide-react';
+import MascotEyes from './MascotEyes';
+import MascotDotFace from './MascotDotFace';
+import Flips from '../ui/flips';
 
 interface InputCardProps {
   content: string;
@@ -29,23 +32,35 @@ export default function InputCard({
 }: InputCardProps) {
   return (
     <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
-      <div className="bg-[#fffaf5] backdrop-blur-md rounded-2xl p-8 border border-neutral-300 min-w-[500px]">
-        <h2 className={`text-2xl selection:bg-[#bbe2cc]/30 mb-6 text-center `}>Add Your Content</h2>
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Paste your content here..."
-          className="w-full max-h-80 min-h-30 p-4 rounded-lg bg-white/10 border focus:outline-none focus:ring-2 focus:ring-neutral-200 border-neutral-300 placeholder-gray-400 overflow-hidden "
-        />
-        <div className="mt-4">
-          <label className={`block mb-2 font-medium `}>Days to complete (1-7):</label>
-          <div className="relative">
+      <div className="bg-transparent min-w-[700px]">
+      <div className="flex flex-col items-center gap-2 mb-6">
+  <div className="relative px-3 py-1 rounded-full text-sm bg-white border border-neutral-300 shadow-[2px_3px_rgba(0,0,0,0.1)]">
+   <span className="text-secondary-foreground">Ready to
+    <Flips /></span>
+    <div className="absolute left-1/2 -bottom-1 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-white "></div>
+  </div>
+  <MascotDotFace size={42} />
+</div>
+        <div className="rounded-2xl bg-white/80 backdrop-blur">
+          <div className="px-4 pt-4 pb-1 text-[13px] text-muted-foreground">Ask a question…</div>
+          <div className="px-2 pb-4">
+            <div className="rounded-xl bg-[#f5f5f5] border border-neutral-200 px-3 py-2">
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="eg. How to learn React?"
+                className="w-full text-secondary-foreground h-20 resize-none bg-transparent focus:outline-none text-[13px]"
+                maxLength={350}
+              />
+              <div className="mt-2 flex items-center justify-between">
+              <div className="relative mt-6">
             <input
               type="text"
               inputMode="numeric"
               pattern="[0-9]*"
               placeholder="1-7"
               value={daysInput}
+              maxLength={1}
               onChange={(e) => {
                 const onlyDigits = e.target.value.replace(/\D/g, '').replace(/^0+/, '');
                 setDaysInput(onlyDigits);
@@ -61,34 +76,37 @@ export default function InputCard({
                   setDaysError('Only 1-7 allowed');
                 }
               }}
-              className="w-full p-3 rounded-lg bg-white/20 backdrop-blur-sm border border-neutral-300 transition focus:outline-none focus:ring-2 focus:ring-neutral-200 focus:bg-white/40 focus:backdrop-blur-md"
+              className="w-10 text-sm text-neutral-700 h-6 pl-2 rounded-lg bg-white/20 backdrop-blur-sm border border-neutral-300 transition focus:outline-none focus:ring-1 focus:ring-neutral-200 focus:bg-white/40 focus:backdrop-blur-md"
             />
-            {daysError && (
-              <div className="mt-2 text-xs text-red-600 bg-red-50 border border-red-200 inline-block px-2 py-1 rounded">{daysError}</div>
-            )}
+          </div>
+                <Button className='w-fit' onClick={onSubmit} disabled={isLoading || !content.trim() || !!daysError}>
+                  <span className="flex items-center gap-2 text-sm">Send <ArrowUpRight className="w-3 h-4" /></span>
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="mt-4">
-          <div className="text-xs text-neutral-600 mb-2">Suggestions</div>
+        <div className="mt-2">
+          
+         
+        </div>
+        <div className="mt-4 flex gap-3 items-center">
+          <div className="text-xs text-neutral-600 mb-1">Suggestions:</div>
           <div className="flex flex-wrap gap-2">
             {['React hooks overview', 'JavaScript fundamentals', 'SQL fundamentals', 'System design basics'].map((s) => (
-              <button key={s} onClick={() => setContent(s)} className="px-2 py-1 rounded-md text-xs cursor-pointer hover:bg-neutral-100" style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(0,0,0,0.08)' }}>
+              <button key={s} onClick={() => setContent(s)} className="px-2 py-1 text-secondary-foreground rounded-md text-xs cursor-pointer hover:bg-neutral-100" style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(0,0,0,0.08)' }}>
                 {s}
               </button>
             ))}
           </div>
         </div>
-        <div className="mt-4 flex items-center gap-3 text-xs text-neutral-600">
-          <span>Helpful:</span>
+        <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="text-secondary-foreground">Helpful:</span>
           <a href="https://react.dev/learn" target="_blank" rel="noreferrer" className="underline hover:opacity-80">React docs</a>
           <a href="https://roadmap.sh" target="_blank" rel="noreferrer" className="underline hover:opacity-80">Roadmaps</a>
           <a href="https://developer.mozilla.org/" target="_blank" rel="noreferrer" className="underline hover:opacity-80">MDN</a>
         </div>
-        <div className='flex justify-end mt-4'>
-          <Button className='w-fit' onClick={onSubmit} disabled={isLoading || !content.trim() || !!daysError}>
-            <span className="flex items-center gap-2 justify-end">Generate <ArrowUpRight className="w-4 h-4" /></span>
-          </Button>
-        </div>
+      
       </div>
     </div>
   );
