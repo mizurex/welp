@@ -1,5 +1,5 @@
 import { google } from "@ai-sdk/google";
-import { generateObject } from "ai";
+import { generateObject, generateText } from "ai";
 import { z } from "zod";
 import dagre from "dagre";
 
@@ -33,8 +33,18 @@ const StudyPlanSchema = z.object({
   summary: z.string(),
 });
 
-function buildTeachingPrompt(content: string, _daysBeforeExam: number) {
-  return `
+
+export async function POST(req: Request) {
+  try {
+    const { content } = await req.json();
+    if(!content || content.trim() <=3){
+      return Response.json(
+        { success: false, message: 'Please enter a valid study topic.' },
+        { status: 400 }
+      );
+    }
+
+    const main_prompt =  `
 You are a master teacher and curriculum designer. Create a compact, section-based concept map (no "day" wording anywhere).
 
 Goals:
@@ -74,41 +84,46 @@ ${content}
 
 Return JSON only that satisfies the schema.
 `;
+
+const intent_prompt =  `
+Classify this user request for a study plan app:
+
+"${content}"
+
+Return only one word:
+- ok -> if it’s a clear learning topic
+- image -> if user asks for image/logo/picture/svg/png/jpg any image related request
+- nonsense -> if it’s unclear or irrelevant
+`;
+  
+   
+const intent = await generateText({
+  model: google("gemini-2.0-flash"),
+  prompt: intent_prompt,
+});
+
+const normalized = intent.text.trim().toLowerCase();
+
+if (normalized.includes('image')) {
+  return Response.json(
+    { success: false, message: 'Welp does not support image generation.' },
+    { status: 400 }
+  );
 }
 
-export async function POST(req: Request) {
-  try {
-    const { content } = await req.json();
-    const daysBeforeExam = 2; 
+if (normalized.includes('nonsense')) {
+  return Response.json(
+    { success: false, message: 'Please ask a clear study topic.' },
+    { status: 400 }
+  );
+}
 
   
-    const IntentSchema = z.object({ intent: z.enum(['ok', 'image', 'nonsense']) });
-    const intentResult = await generateObject({
-      model: google("gemini-2.0-flash"),
-      schema: IntentSchema,
-      prompt: `You are a strict intent classifier for a study-plan builder.\nReturn JSON with {"intent": "ok" | "image" | "nonsense"}.\n- Use "image" if the user asks to create/generate/provide an image, picture, logo, or references formats like png/jpg/svg.\n- Use "nonsense" if the request is unintelligible or not a meaningful topic/question.\n- Otherwise use "ok".\nUser request: "${content}"`,
-    });
-    if (intentResult.object.intent === 'image') {
-      return Response.json(
-        { success: false, error: 'UNSUPPORTED_INTENT', message: 'Welp does not support image generation' },
-        { status: 400 }
-      );
-    }
-    if (intentResult.object.intent === 'nonsense') {
-      return Response.json(
-        { success: false, error: 'INVALID_REQUEST', message: 'Please ask a clear study topic.' },
-        { status: 400 }
-      );
-    }
-
-  
-    const compressionLevel = "low";
-
-
+    const compressionLevel = "low"; //imp
     const { object } = await generateObject({
       model: google("gemini-2.0-flash"),
       schema: StudyPlanSchema,
-      prompt: buildTeachingPrompt(content, daysBeforeExam),
+      prompt: main_prompt,
     });
 
   
