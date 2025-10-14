@@ -33,42 +33,46 @@ const StudyPlanSchema = z.object({
   summary: z.string(),
 });
 
-function buildTeachingPrompt(content: string, daysBeforeExam: number) {
-  const compressionLevel = daysBeforeExam <= 7 ? "low" : daysBeforeExam <= 14 ? "medium" : "high";
-  const topicsPerDay = daysBeforeExam <= 7 ? "2-3" : daysBeforeExam <= 14 ? "3-5" : "4-6";
-
+function buildTeachingPrompt(content: string, _daysBeforeExam: number) {
   return `
-You are a master teacher and curriculum designer. Create a crystal-clear, step-by-step ${daysBeforeExam}-day study plan that TEACHES deeply (not just lists syntax).
+You are a master teacher and curriculum designer. Create a compact, section-based concept map (no "day" wording anywhere).
+
+Goals:
+- Keep the graph small but strong: 3–4 sections total, each with ~2 topics, each topic with 1–2 subtopics.
+- Make each topic node richer so we need fewer nodes overall.
 
 Teaching Principles (FOLLOW STRICTLY):
 - Be concise, specific, and practical. No fluff.
-- For every TOPIC:
-  1) Explain the concept 7-8 sentences (why it matters, how it works).
-  2) Show ONE minimal, runnable code example when the concept is programming-related.
-     - Use correct language fences (\`\`\`ts, \`\`\`js, \`\`\`py, etc.)
-     - code should clear and easy to understand.
-  3) Give a short 3-5 step walkthrough (how to apply it mentally or in code).
-  4) Practice tasks are OPTIONAL (0-2). Include them only if they truly add value.
-- For SUBTOPICS: 1-3 sentence explanation. Include code snippet only if it clarifies the idea.
-- Use simple language so a beginner can follow.
+- For every TOPIC node:
+  1) Write 120–160 words that explain what/why/how in plain English.
+  2) Provide ONE compact, concrete example appropriate to the domain:
+     - Programming: minimal runnable code with correct fence (\`\`\`ts|js|py|go|java\`\`\`)
+     - SQL: fenced \`\`\`sql using specific columns (never SELECT *), with WHERE and JOIN/GROUP BY when useful
+     - DS&A: pseudocode plus time/space complexity
+     - Math: formula plus a tiny worked numeric example
+     - APIs: JSON request/response or cURL
+     - System design: tiny ASCII diagram or bullet-point architecture
+  3) Add a 3–5 step micro-walkthrough (short bullets).
+  4) Practice tasks OPTIONAL (0–2), only if truly useful.
+- For SUBTOPIC nodes: 1–2 sentences; code only if it clarifies.
+- Use simple language for beginners.
 
-Compression Rules (${compressionLevel.toUpperCase()}):
-- Topics per day: ${topicsPerDay}
-- Keep the tree width reasonable. Combine small topics under themed sessions.
+Structure Requirements (Map these onto the provided JSON schema):
+- days[] will represent SECTIONS (use for grouping only; do not write the word "Day").
+- Each section (days[i]): dayNumber (for order), dayTitle (concise section name, no "Day"), topics[], totalMinutes.
+- Each topic: id, title, content (as above), estimatedMinutes (aim 20–40), subtopics[] (1–2), practiceTasks[] (0–2, optional).
+- Each subtopic: id, title, content (1–2 sentences), estimatedMinutes?, practiceTasks? (0–1, optional).
 
-Structure Requirements:
-- days[] ordered: fundamentals → intermediate → advanced → review
-- Each day: dayNumber, dayTitle, topics[], totalMinutes
-- Each topic: id, title, content (teaching text as above), estimatedMinutes, subtopics[] (2-5), practiceTasks[] (0-2, optional)
-- Each subtopic: id, title, content (1-3 sentences), estimatedMinutes?, practiceTasks? (0-1, optional)
+Style & Constraints:
+- Never include phrases like "Day 1", "2-day plan", or anything time-based in titles. Use clear section names instead.
+- Prefer fewer, richer nodes over many thin nodes.
+- Examples must demonstrate practical patterns.
+- Examples must be domain-appropriate; prefer specificity over placeholders.
 
 Content to teach:
 ${content}
 
-Important:
-- Don’t skip subtopics. Every topic must have 2-5 subtopics.
-- Prefer short, runnable code examples over abstract descriptions when relevant.
-- Always write clear, direct, beginner-friendly text.
+Return JSON only that satisfies the schema.
 `;
 }
 
@@ -80,7 +84,7 @@ export async function POST(req: Request) {
   
     const IntentSchema = z.object({ intent: z.enum(['ok', 'image', 'nonsense']) });
     const intentResult = await generateObject({
-      model: google("gemini-2.0-flash-exp"),
+      model: google("gemini-2.0-flash"),
       schema: IntentSchema,
       prompt: `You are a strict intent classifier for a study-plan builder.\nReturn JSON with {"intent": "ok" | "image" | "nonsense"}.\n- Use "image" if the user asks to create/generate/provide an image, picture, logo, or references formats like png/jpg/svg.\n- Use "nonsense" if the request is unintelligible or not a meaningful topic/question.\n- Otherwise use "ok".\nUser request: "${content}"`,
     });
@@ -99,11 +103,10 @@ export async function POST(req: Request) {
 
   
     const compressionLevel = "low";
-    const topicsPerDay = "2-3";
 
 
     const { object } = await generateObject({
-      model: google("gemini-2.0-flash-exp"),
+      model: google("gemini-2.0-flash"),
       schema: StudyPlanSchema,
       prompt: buildTeachingPrompt(content, daysBeforeExam),
     });
@@ -113,49 +116,24 @@ export async function POST(req: Request) {
     const flowEdges: any[] = [];
   
 
-    // Create root node
-    const rootId = "root";
-    flowNodes.push({
-      id: rootId,
-      type: "custom",
-      position: { x: 0, y: 0 },
-      data: {
-        label: `${object.totalDays}-Day Study Plan`,
-        content: object.summary,
-        nodeType: "root",
-        isRoot: true,
-      },
-    });
 
     // Create day nodes
     object.days.forEach((day, dayIndex) => {
       const dayId = `day-${day.dayNumber}`;
-      
+
       flowNodes.push({
         id: dayId,
         type: "custom",
         position: { x: 0, y: 0 },
         data: {
-          label: day.dayTitle || `Day ${day.dayNumber}`,
-          content: `${day.topics.length} topics • ${day.totalMinutes} min total`,
+          label: day.dayTitle,
+          content: `${day.topics.length} sections • ~${day.totalMinutes} min`,
           nodeType: "day",
-          day: `Day ${day.dayNumber}`,
+          day: day.dayTitle,
           dayNumber: day.dayNumber,
         },
       });
-
-      // Connect root to day
-      flowEdges.push({
-        id: `edge-root-${dayId}`,
-        source: rootId,
-        target: dayId,
-        type: "smoothstep",
-        animated: false,
-        style: { 
-          stroke: "#3b82f6", 
-          strokeWidth: 2,
-        },
-      });
+      // (No root-to-day edge per new design)
 
       // Create topic nodes for this day
       day.topics.forEach((topic, topicIndex) => {
@@ -170,30 +148,29 @@ export async function POST(req: Request) {
             content: topic.content,
             estimatedTime: `${topic.estimatedMinutes} min`,
             nodeType: "topic",
-            day: `Day ${day.dayNumber}`,
+            day: day.dayTitle,
             dayNumber: day.dayNumber,
             practiceTasks: topic.practiceTasks,
           },
         });
 
-        // Connect day to topic
+      // Connect day to topic
         flowEdges.push({
           id: `edge-${dayId}-${topicId}`,
           source: dayId,
           target: topicId,
-          type: "smoothstep",
+        type: "bezier",
           animated: false,
           style: { 
             stroke: "#10b981", 
             strokeWidth: 1.5,
           },
         });
-
-        // Create subtopic nodes
         if (topic.subtopics && topic.subtopics.length > 0) {
+          const siblingCount = topic.subtopics.length;
           topic.subtopics.forEach((subtopic, subIndex) => {
             const subtopicId = subtopic.id || `sub-${day.dayNumber}-${topicIndex}-${subIndex}`;
-            
+
             flowNodes.push({
               id: subtopicId,
               type: "custom",
@@ -203,21 +180,24 @@ export async function POST(req: Request) {
                 content: subtopic.content,
                 estimatedTime: subtopic.estimatedMinutes ? `${subtopic.estimatedMinutes} min` : undefined,
                 nodeType: "subtopic",
-                day: `Day ${day.dayNumber}`,
+                day: day.dayTitle,
                 dayNumber: day.dayNumber,
                 practiceTasks: subtopic.practiceTasks,
+                parentId: topicId,
+                subIndex,
+                siblingCount,
               },
             });
 
-            // Connect topic to subtopic
+            // Connect topic to subtopic with curved connector
             flowEdges.push({
               id: `edge-${topicId}-${subtopicId}`,
               source: topicId,
               target: subtopicId,
-              type: "smoothstep",
+              type: "bezier",
               animated: false,
-              style: { 
-                stroke: "#64748b", 
+              style: {
+                stroke: "#64748b",
                 strokeWidth: 1.2,
                 strokeDasharray: "3 3",
               },
@@ -233,7 +213,7 @@ export async function POST(req: Request) {
     
     //  vertical tree layout
     dagreGraph.setGraph({
-      rankdir: "TB",      // Top to Bottom for tree structure
+      rankdir: "TB",      
       ranksep: 120,       
       nodesep: 80,     
       marginx: 50,
@@ -276,20 +256,40 @@ export async function POST(req: Request) {
  
     dagre.layout(dagreGraph);
     
-    const layoutedNodes = flowNodes.map((node) => {
+    const prelimNodes = flowNodes.map((node) => {
       const dagreNode = dagreGraph.node(node.id);
-      const nodeWidth = dagreNode.width;
-      const nodeHeight = dagreNode.height;
-      
+      const nodeWidth = dagreNode?.width ?? 200;
+      const nodeHeight = dagreNode?.height ?? 80;
       return {
         ...node,
         position: {
-          x: dagreNode.x - nodeWidth / 2,
-          y: dagreNode.y - nodeHeight / 2,
+          x: (dagreNode?.x ?? 0) - nodeWidth / 2,
+          y: (dagreNode?.y ?? 0) - nodeHeight / 2,
         },
         targetPosition: "top",
         sourcePosition: "bottom",
-      };
+      } as any;
+    });
+
+    // Adjust detached subtopics to sit to the right of their parent topic, stacked vertically
+    const nodeById: Record<string, any> = Object.fromEntries(prelimNodes.map((n: any) => [n.id, n]));
+    const sideOffsetX = 300;  
+    const verticalStep = 90;
+    const layoutedNodes = prelimNodes.map((n: any) => {
+      if (n?.data?.nodeType === "subtopic" && n?.data?.parentId && nodeById[n.data.parentId]) {
+        const parent = nodeById[n.data.parentId];
+        const count = typeof n.data.siblingCount === 'number' ? n.data.siblingCount : 1;
+        const index = typeof n.data.subIndex === 'number' ? n.data.subIndex : 0;
+        const centerOffset = (count - 1) * verticalStep / 2;
+        return {
+          ...n,
+          position: {
+            x: parent.position.x + sideOffsetX,
+            y: parent.position.y - centerOffset + index * verticalStep,
+          },
+        };
+      }
+      return n;
     });
 
     const layoutedEdges = flowEdges.map((edge) => ({

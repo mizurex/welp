@@ -216,7 +216,7 @@ export default function ChatPage({
                       <textarea
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
-                        placeholder="eg. How to learn React?"
+                        placeholder="e.g. Learn React from basics"
                         className="w-full text-secondary-foreground h-20 resize-none bg-transparent focus:outline-none text-[13px]"
                         maxLength={350}
                       />
@@ -332,6 +332,7 @@ export default function ChatPage({
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           nodeTypes={nodeTypes as any}
+          defaultEdgeOptions={{ type: 'bezier', animated: false }}
           fitView
           className="touchdevice-flow"
         >

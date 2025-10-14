@@ -45,7 +45,6 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
     addNodes([{
       id: noteId,
       type: 'custom',
-      // place the note slightly below the current node
       position: { x: (typeof xPos === 'number' ? xPos : 0), y: (typeof yPos === 'number' ? yPos : 0) + 140 },
       data: {
         label: 'Note',
@@ -96,8 +95,8 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
   };
 
   const nodeStyles = data.nodeType === 'topic' 
-    ? 'bg-[#5a5a5a]  text-white shadow-xl'
-    : 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-800 shadow-md';
+    ? 'bg-[#5a5a5a]  text-white '
+    : 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-800 ';
 
   const completedStyles = isCompleted 
     ? 'ring-3 ring-[#7cff3f]' 
@@ -127,9 +126,7 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
             {data.label}
           </h3>
           <div className="flex gap-2 text-xs opacity-90">
-            <span className="gap-3 bg-white/40 backdrop-blur-md rounded-lg border border-white/20  px-2 cursor-pointer py-1 text-xs transition-colors flex items-center justify-between border border-white/90">
-              {data.day}
-            </span>
+          
             {data.estimatedTime && (
               <span className="gap-3 bg-white/40 backdrop-blur-md rounded-lg border border-white/20  px-2 cursor-pointer py-1 text-xs transition-colors flex items-center justify-between border border-white/90">
                 {data.estimatedTime}
