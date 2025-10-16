@@ -1,9 +1,12 @@
 'use client';
 import React, { memo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Handle, Position, NodeProps, useReactFlow } from '@xyflow/react';
 import Image from 'next/image';
-import { NotebookPen,Ellipsis } from 'lucide-react';
+import { NotebookPen,Ellipsis, MessageCircle, Loader2, ArrowUpRight } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { Button } from './ui/button';
+import MascotDotFace from './decor/mascot';
 const MarkdownRenderer = dynamic(() => import('./markdown-renderer'), { ssr: false });
 
 export interface CustomNodeData {
@@ -28,6 +31,35 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
   const [isCompleted, setIsCompleted] = useState(data.isCompleted);
   const [showDetails, setShowDetails] = useState(false);
   const [openInMenu, setOpenInMenu] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([]);
+  const [chatSending, setChatSending] = useState(false);
+  const [chatError, setChatError] = useState('');
+
+  const sendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const prompt = chatInput.trim();
+    if (!prompt || chatSending) return;
+    setChatError('');
+    setChatInput('');
+    setChatMessages((m) => [...m, { role: 'user', text: prompt }]);
+    setChatSending(true);
+    try {
+      const res = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, context: data.content }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.success) throw new Error(json?.message || 'Failed');
+      setChatMessages((m) => [...m, { role: 'assistant', text: json.text || '' }]);
+    } catch (err: any) {
+      setChatError(err?.message || 'Something went wrong');
+    } finally {
+      setChatSending(false);
+    }
+  };
 
   const handleComplete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -214,6 +246,20 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
                  >
                    <span><NotebookPen className="w-3 h-3" /></span>Notes
               </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setChatOpen((v) => !v); }}
+                className="gap-3 flex items-center justify-between px-2 py-1 text-xs cursor-pointer transition-colors rounded-lg"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.25)',
+                  boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.18)',
+                  borderColor: 'rgba(255,255,255,0.25)',
+                }}
+              >
+                <span><MessageCircle className="w-3 h-3" /></span>Chat
+              </button>
                 <div className="relative">
                   <button
                     onClick={(e) => { e.stopPropagation(); setOpenInMenu((v) => !v); }}
@@ -245,6 +291,86 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
             )}
           </div>
         </div>
+      )}
+      {chatOpen && !data.isNote && typeof window !== 'undefined' && createPortal(
+        <div
+          className="fixed bottom-6 right-6 z-[1000] w-[520px] max-w-[90vw] rounded-2xl bg-white/80 backdrop-blur border border-neutral-200 shadow-[2px_3px_rgba(0,0,0,0.1)]"
+        >
+          <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-200">
+          
+            <button
+              onClick={(e) => { e.stopPropagation(); setChatOpen(false); }}
+              className="text-[12px] px-2 py-1 rounded hover:bg-neutral-100 cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+          <div className="h-[360px] max-h-[65vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex-1 overflow-auto p-3 space-y-2">
+              {chatMessages.length === 0 && (
+                <div className="text-[12px] text-neutral-600">
+                  Ask about this node. Context will be used to answer.
+                </div>
+              )}
+              {chatMessages.map((m, i) => (
+                <div key={i} className="text-[13px]">
+                  {m.role === 'user' ? (
+                    <div className="max-w-[85%] ml-auto bg-[#f5f5f5] border border-neutral-200 rounded-md px-3 py-2 whitespace-pre-wrap">
+                      {m.text}
+                    </div>
+                  ) : (
+                    <div className="max-w-[85%] mr-auto bg-white/80 backdrop-blur rounded-md px-2 py-1 border border-neutral-200">
+                      <MarkdownRenderer content={m.text} />
+                    </div>
+                  )}
+                </div>
+              ))}
+              {chatError && (
+                <div className="text-[12px] text-red-600">{chatError}</div>
+              )}
+            </div>
+            <form onSubmit={sendMessage} className="border-t border-neutral-200 p-2">
+              <div className="rounded-xl bg-[#f5f5f5] border border-neutral-200 px-3 py-2">
+                <textarea
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Type a message..."
+                  className="w-full text-secondary-foreground min-h-[42px] max-h-[140px] resize-none bg-transparent focus:outline-none text-[13px]"
+                />
+                <div className="mt-2 flex items-center justify-end">
+                  <Button
+                    className="py-2 px-2.5 w-fit"
+                    type="submit"
+                    disabled={chatSending || !chatInput.trim()}
+                  >
+                    {chatSending ? (
+                      <span className="flex items-center gap-2 text-sm">
+                        <span className="inline-flex items-center justify-center">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        </span>
+                        <span className="relative bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-600 to-white animate-[shimmer_1.1s_linear_infinite] font-semibold">
+                          Generating
+                        </span>
+                        <style jsx>{`
+                          @keyframes shimmer {
+                            0% { background-position: -200% 0; }
+                            100% { background-position: 200% 0; }
+                          }
+                          .animate-\[shimmer_1\.1s_linear_infinite\] { background-size: 200% auto; animation: shimmer 1.1s linear infinite; }
+                        `}</style>
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2 text-sm">
+                        <ArrowUpRight className="w-4 h-5" />
+                      </span>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
       )}
       <Handle
         type="source"
