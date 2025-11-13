@@ -1,5 +1,7 @@
 import { google } from "@ai-sdk/google";
-import { generateText } from "ai";
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { generateText} from "ai";
+
 
 export async function POST(req: Request) {
   try {
@@ -9,6 +11,8 @@ export async function POST(req: Request) {
     if (!userPrompt) {
       return Response.json({ success: false, message: 'Empty prompt' }, { status: 400 });
     }
+  
+  
 
     const system = `You are a helpful tutor. Keep answers concise, practical, and accurate.
 If context is provided, prefer it and explicitly tie explanations back to it.`;
@@ -19,12 +23,16 @@ Context (may be empty):\n${nodeContext}
 
 User: ${userPrompt}`;
 
-    const { text } = await generateText({
-      model: google("gemini-2.0-flash"),
-      prompt: composed,
-    });
+const userKey = req.headers.get('api-key')?.trim() || ''
+const provider = userKey ? createGoogleGenerativeAI({ apiKey: userKey }) : google
 
-    return Response.json({ success: true, text });
+const { text } = await generateText({
+  model: provider('gemini-2.0-flash'),
+  prompt: composed,
+})
+
+return Response.json({ success: true, text })
+
   } catch (e: any) {
     return Response.json({ success: false, message: e?.message || 'Failed' }, { status: 500 });
   }

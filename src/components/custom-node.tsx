@@ -1,9 +1,9 @@
 'use client';
-import React, { memo, useState } from 'react';
+import React, { memo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Handle, Position, NodeProps, useReactFlow } from '@xyflow/react';
 import Image from 'next/image';
-import { NotebookPen,Ellipsis, MessageCircle, Loader2, ArrowUpRight } from 'lucide-react';
+import { NotebookPen,Ellipsis, MessageCircle, Loader2, ArrowUpRight, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Button } from './ui/button';
 import MascotDotFace from './decor/mascot';
@@ -36,6 +36,8 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
   const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([]);
   const [chatSending, setChatSending] = useState(false);
   const [chatError, setChatError] = useState('');
+  const apiKey = localStorage.getItem('api-Key') || '';
+  
 
   const sendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -48,7 +50,7 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
     try {
       const res = await fetch('/api/ask', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' , 'api-key': apiKey },
         body: JSON.stringify({ prompt, context: data.content }),
       });
       const json = await res.json();
@@ -302,7 +304,7 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
               onClick={(e) => { e.stopPropagation(); setChatOpen(false); }}
               className="text-[12px] px-2 py-1 rounded hover:bg-neutral-100 cursor-pointer"
             >
-              Close
+              <X className="size-4" />
             </button>
           </div>
           <div className="h-[360px] max-h-[65vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>

@@ -14,7 +14,6 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import CustomNode from "./custom-node";
-import { Space_Grotesk } from "next/font/google";
 import TopPanel from "./menu/top-panel";
 import { loadPlan, savePlan } from "@/dexie/db";
 import { useThreadStore } from "@/stores/thread-store";
@@ -25,7 +24,6 @@ import Flips from "./ui/flips";
 import MainPanel from "./menu/main-panel";
 import { generatePlan } from "@/lib/api/generate";
 
-const spaceGrotesk = Space_Grotesk({ subsets: ["latin"] });
 const nodeTypes = {
   custom: CustomNode,
 };
@@ -49,6 +47,7 @@ export default function ChatPage({
   const [requestError, setRequestError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [hasHydrated, setHasHydrated] = useState(false);
+  const apiKey = localStorage.getItem('api-Key') || '';
 
   const serializeGraph = (ns: any[], es: any[]) => {
     try {
@@ -166,7 +165,7 @@ export default function ChatPage({
       if (!currentThreadId) {
         await createNewThread();
       }
-      const data = await generatePlan(content);
+      const data = await generatePlan(content, apiKey);
       setNodes(data.nodes);
       setEdges(data.edges);
     } catch (err: any) {

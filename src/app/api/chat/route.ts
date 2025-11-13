@@ -2,6 +2,7 @@ import { google } from "@ai-sdk/google";
 import { generateObject, generateText } from "ai";
 import { z } from "zod";
 import dagre from "dagre";
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 
 const SubtopicSchema = z.object({
   id: z.string(),
@@ -96,9 +97,10 @@ Return only one word:
 - nonsense -> if it’s unclear or irrelevant
 `;
   
-   
-const intent = await generateText({
-  model: google("gemini-2.0-flash"),
+   const userKey = req.headers.get('api-key')?.trim() || ''
+   const provider = userKey ? createGoogleGenerativeAI({ apiKey: userKey }) : google
+   const intent = await generateText({
+  model: provider("gemini-2.0-flash"),
   prompt: intent_prompt,
 });
 
@@ -121,7 +123,7 @@ if (normalized.includes('nonsense')) {
   
     const compressionLevel = "low"; //imp
     const { object } = await generateObject({
-      model: google("gemini-2.0-flash"),
+      model: provider("gemini-2.0-flash"),
       schema: StudyPlanSchema,
       prompt: main_prompt,
     });

@@ -1,7 +1,7 @@
-export async function generatePlan(content: string) {
+export async function generatePlan(content: string, apiKey: string) {
     const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' , 'api-key': apiKey },
       body: JSON.stringify({ content }),
     });
     const data = await res.json();
