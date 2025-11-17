@@ -48,6 +48,7 @@ export default function ChatPage({
   const [menuOpen, setMenuOpen] = useState(false);
   const [hasHydrated, setHasHydrated] = useState(false);
   const apiKey = localStorage.getItem('api-Key') || '';
+  const model = localStorage.getItem('model') || 'gemini-2.0-flash';
 
   const serializeGraph = (ns: any[], es: any[]) => {
     try {
@@ -165,7 +166,7 @@ export default function ChatPage({
       if (!currentThreadId) {
         await createNewThread();
       }
-      const data = await generatePlan(content, apiKey);
+      const data = await generatePlan(content, apiKey,model);
       setNodes(data.nodes);
       setEdges(data.edges);
     } catch (err: any) {

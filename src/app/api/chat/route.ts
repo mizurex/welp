@@ -3,6 +3,8 @@ import { generateObject, generateText } from "ai";
 import { z } from "zod";
 import dagre from "dagre";
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { openai } from "@ai-sdk/openai"
+import { createOpenAI } from '@ai-sdk/openai';
 
 const SubtopicSchema = z.object({
   id: z.string(),
@@ -38,7 +40,7 @@ const StudyPlanSchema = z.object({
 export async function POST(req: Request) {
   try {
     const { content } = await req.json();
-    if(!content || content.trim() <=3){
+    if(!content || content.trim().length <= 3){
       return Response.json(
         { success: false, message: 'Please enter a valid study topic.' },
         { status: 400 }
@@ -98,11 +100,28 @@ Return only one word:
 `;
   
    const userKey = req.headers.get('api-key')?.trim() || ''
-   const provider = userKey ? createGoogleGenerativeAI({ apiKey: userKey }) : google
-   const intent = await generateText({
-  model: provider("gemini-2.0-flash"),
-  prompt: intent_prompt,
-});
+   const model:string = req.headers.get('model')?.trim() || 'gemini-2.0-flash'
+   const isOpenAI = model.toLowerCase().startsWith('gpt')
+   let provider : any;
+   if (isOpenAI) {
+     if (!userKey) {
+       return Response.json(
+         { success: false, message: 'OpenAI model selected but no api-key header provided.' },
+         { status: 400 }
+       );
+     }
+     provider = createOpenAI({ apiKey: userKey });
+   } else {
+     provider = userKey ? createGoogleGenerativeAI({ apiKey: userKey }) : google;
+   }
+
+   
+
+  const intentModel = isOpenAI ? 'gpt-4o-mini' : 'gemini-2.0-flash';
+  const intent = await generateText({
+    model: provider(intentModel),
+    prompt: intent_prompt,
+  });
 
 const normalized = intent.text.trim().toLowerCase();
 
@@ -122,11 +141,12 @@ if (normalized.includes('nonsense')) {
 
   
     const compressionLevel = "low"; //imp
+
     const { object } = await generateObject({
-      model: provider("gemini-2.0-flash"),
+      model: provider(model),
       schema: StudyPlanSchema,
       prompt: main_prompt,
-    });
+    })
 
   
     const flowNodes: any[] = [];

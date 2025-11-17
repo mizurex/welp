@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic';
 import { Button } from './ui/button';
 import MascotDotFace from './decor/mascot';
 const MarkdownRenderer = dynamic(() => import('./markdown-renderer'), { ssr: false });
+import { TStorage } from 'tsrage';
 
 export interface CustomNodeData {
   label: string;
@@ -26,6 +27,11 @@ type CustomNodeProps = NodeProps & {
   yPos: number;
 };
 
+type modelSchema = {
+  model: string;
+  apiKey: string;
+};
+
 const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProps) => {
   const { addNodes, addEdges } = useReactFlow();
   const [isCompleted, setIsCompleted] = useState(data.isCompleted);
@@ -36,8 +42,10 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
   const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([]);
   const [chatSending, setChatSending] = useState(false);
   const [chatError, setChatError] = useState('');
-  const apiKey = localStorage.getItem('api-Key') || '';
-  
+
+  const storage = new TStorage<modelSchema>();
+  const apiKey = storage.getItem('apiKey');
+  const model = storage.getItem('model');
 
   const sendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -50,7 +58,7 @@ const CustomNode = memo(({ id, data, isConnectable, xPos, yPos }: CustomNodeProp
     try {
       const res = await fetch('/api/ask', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' , 'api-key': apiKey },
+        headers: { 'Content-Type': 'application/json' , 'api-key': apiKey || '' , 'model': model || 'gemini-2.0-flash' },
         body: JSON.stringify({ prompt, context: data.content }),
       });
       const json = await res.json();
